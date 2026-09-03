@@ -141,6 +141,7 @@ class SonicTeleopState(
         gripper_right_bus: int = 6,
         gripper_can_id: int = 1,
         gripper_master_id: int = 0x11,
+        gripper_skip_motor_id_check: bool = False,
         gripper_kp: float = 20.0,
         gripper_kd: float = 1.0,
         gripper_calibration_speed_rad_s: float = 0.2,
@@ -188,6 +189,7 @@ class SonicTeleopState(
         self._right_bus = int(gripper_right_bus)
         self._gripper_can_id = int(gripper_can_id)
         self._gripper_master_id = int(gripper_master_id)
+        self._gripper_skip_motor_id_check = bool(gripper_skip_motor_id_check)
         self._gripper_kp = float(gripper_kp)
         self._gripper_kd = float(gripper_kd)
         self._gripper_calibration_kp = float(gripper_calibration_kp)
@@ -539,7 +541,12 @@ class SonicTeleopState(
                 msg.frame.data,
                 received_at=time.monotonic(),
             )
-            if feedback.motor_id != self._gripper_can_id:
+            # BXI feedback uses the command motor ID in D0 while the
+            # response/master ID is carried by the arbitration ID.
+            if (
+                not self._gripper_skip_motor_id_check
+                and feedback.motor_id != self._gripper_can_id
+            ):
                 return
         except (TypeError, ValueError) as exc:
             if not self._bad_gripper_feedback_warned:

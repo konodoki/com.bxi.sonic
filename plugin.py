@@ -58,6 +58,9 @@ def _common_state_kwargs(state: StateBuildContext) -> dict[str, object]:
         "gripper_right_bus": state.int_param("gripper_right_bus", 6),
         "gripper_can_id": state.int_param("gripper_can_id", 1),
         "gripper_master_id": state.int_param("gripper_master_id", 0x11),
+        "gripper_skip_motor_id_check": state.bool_param(
+            "gripper_skip_motor_id_check", False
+        ),
         "gripper_kp": state.float_param("gripper_kp", 20.0),
         "gripper_kd": state.float_param("gripper_kd", 1.0),
         "gripper_calibration_speed_rad_s": state.float_param(

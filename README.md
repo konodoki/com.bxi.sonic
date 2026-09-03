@@ -426,6 +426,7 @@ SONIC 对外只保留部署环境相关变量：
 | `gripper_right_bus` | `6` | 右夹爪 CAN 总线号 |
 | `gripper_can_id` | `1` | 两侧夹爪电机 CAN ID |
 | `gripper_master_id` | `17` | 电机响应帧仲裁 ID，默认 `can_id | 0x10` |
+| `gripper_skip_motor_id_check` | `false` | 诊断用：跳过反馈 D0 电机 ID 校验；仅现场确认异常电机时临时启用 |
 | `gripper_kp` | `20.0` | 夹爪位置环 KP |
 | `gripper_kd` | `1.0` | 夹爪位置环 KD |
 | `gripper_calibration_speed_rad_s` | `0.2` | 每次进入状态时寻找机械限位的目标角度速度 |

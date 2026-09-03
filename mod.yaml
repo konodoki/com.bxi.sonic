@@ -277,13 +277,14 @@ states:
       gripper_right_bus: 6
       gripper_can_id: 1
       gripper_master_id: 17
-      gripper_kp: 10.0
-      gripper_kd: 0.5
+      gripper_skip_motor_id_check: false
+      gripper_kp: 3.0
+      gripper_kd: 1.0
       gripper_calibration_speed_rad_s: 2.0
       gripper_calibration_kp: 5.0
       gripper_calibration_kd: 0.5
       gripper_contact_torque: 0.5
-      gripper_abort_torque: 1.0
+      gripper_abort_torque: 2.5
       gripper_contact_confirm_s: 0.25
       gripper_stopped_velocity_rad_s: 0.5
       gripper_tracking_error_rad: 0.08
