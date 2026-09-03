@@ -317,10 +317,10 @@ ros2 launch remote_controller remote_controller_keyboard.launch.py
 | `gripper_maximum_motor_temperature_c` | `80` | 电机线圈温度上限 |
 
 硬件运行前必须在目标机器人上确认左右总线号、方向、力矩阈值和增益。每次进入状态时
-立即对两侧发送 `enter_motor_mode`，订阅 `/canfd_packet/rx`，然后依次执行“寻找张开限位、
-回退、寻找闭合限位、回退、返回张开位置”。没有合法响应帧即认为对应电机离线；任一侧
-失败时左右夹爪都退出电机模式。校准完成前 trigger 不接管夹爪，完成后按各侧实测软限位
-映射 trigger。
+立即对两侧发送 `enter_motor_mode`，订阅 `/canfd_packet/rx`，然后让每一侧独立执行“寻找
+张开限位、回退、寻找闭合限位、回退、返回张开位置”。没有合法响应帧即认为对应电机
+离线；任一侧失败时只让该侧退出电机模式，另一侧继续校准或运行。每侧校准完成前对应
+trigger 不接管夹爪，完成后立即按该侧实测软限位映射 trigger，无需等待另一侧。
 
 ## 内部端口和诊断
 

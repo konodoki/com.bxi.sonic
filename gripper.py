@@ -291,11 +291,13 @@ class GripperCalibrator:
     ) -> Optional[float]:
         """Advance calibration once and return this cycle's position target."""
 
-        if self.ready or self.failed:
+        if self.failed:
             return self.target_position
         if feedback is not None:
             self._update_torque_filter(feedback.torque)
         if self._check_common_faults(feedback, now):
+            return self.target_position
+        if self.ready:
             return self.target_position
         if feedback is None:
             return None

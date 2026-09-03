@@ -220,8 +220,8 @@ class SonicTeleopState(
 
         self._gripper_session_active = False
         self._gripper_armed = False
-        self._gripper_calibrated = False
-        self._gripper_faulted = False
+        self._gripper_ready_buses: set[int] = set()
+        self._gripper_faulted_buses: set[int] = set()
         self._last_gripper_enable_time: Optional[float] = None
         self._left_trigger = 0.0
         self._right_trigger = 0.0
@@ -471,15 +471,18 @@ class SonicTeleopState(
             self._start_gripper_session(now)
             self._publish_gripper_enable(now)
             self._gripper_armed = True
-            self.logger.info("SONIC夹爪已使能，等待左右电机响应后开始低速限位校准；" "校准完成前PICO trigger不会接管夹爪")
+            self.logger.info(
+                "SONIC夹爪已使能；左右电机将独立响应、校准和接管对应"
+                "PICO trigger，单侧不可用不会阻塞另一侧"
+            )
 
     def on_exit(self, ctx: RobotControlContext) -> None:
         if self.hardware_gripper and self._gripper_publisher is not None:
             self._disable_grippers()
         self._gripper_session_active = False
         self._gripper_armed = False
-        self._gripper_calibrated = False
-        self._gripper_faulted = False
+        self._gripper_ready_buses.clear()
+        self._gripper_faulted_buses.clear()
         self._last_gripper_enable_time = None
         with self._gripper_feedback_lock:
             self._gripper_feedback.clear()
@@ -551,8 +554,8 @@ class SonicTeleopState(
             return
         self._left_trigger = self._right_trigger = 0.0
         self._gripper_armed = False
-        self._gripper_calibrated = False
-        self._gripper_faulted = False
+        self._gripper_ready_buses.clear()
+        self._gripper_faulted_buses.clear()
         self._bad_gripper_feedback_warned = False
         self._last_gripper_enable_time = None
         with self._gripper_feedback_lock:
@@ -562,8 +565,19 @@ class SonicTeleopState(
             self._gripper_phase_snapshot[bus] = calibrator.phase
         self._gripper_session_active = True
 
-    def _publish_gripper_enable(self, now: float) -> None:
-        for bus in (self._left_bus, self._right_bus):
+    def _publish_gripper_enable(
+        self,
+        now: float,
+        buses: Optional[tuple[int, ...]] = None,
+    ) -> None:
+        selected_buses = (
+            tuple(self._gripper_calibrators)
+            if buses is None
+            else buses
+        )
+        for bus in selected_buses:
+            if bus in self._gripper_faulted_buses:
+                continue
             self._gripper_publisher.publish(
                 BxiMotor.build_motor_packet(
                     bus, self._gripper_can_id, BxiMotor.enter_motor_mode()
@@ -577,17 +591,23 @@ class SonicTeleopState(
             last_enable_time is None
             or now - last_enable_time >= self.gripper_enable_interval_s
         ):
-            self._publish_gripper_enable(now)
+            self._publish_gripper_enable(
+                now,
+                tuple(self._gripper_ready_buses),
+            )
 
     def _disable_grippers(self) -> None:
         for bus in (self._left_bus, self._right_bus):
-            self._gripper_publisher.publish(
-                BxiMotor.build_motor_packet(
-                    bus,
-                    self._gripper_can_id,
-                    BxiMotor.exit_motor_mode(),
-                )
+            self._disable_gripper(bus)
+
+    def _disable_gripper(self, bus: int) -> None:
+        self._gripper_publisher.publish(
+            BxiMotor.build_motor_packet(
+                bus,
+                self._gripper_can_id,
+                BxiMotor.exit_motor_mode(),
             )
+        )
 
     def _publish_gripper_target(
         self,
@@ -653,18 +673,20 @@ class SonicTeleopState(
         if message is not None:
             self.logger.info(f"SONIC{side}夹爪：{message}")
 
-    def _fail_gripper_session(self, reason: str) -> None:
-        if self._gripper_faulted:
+    def _fail_gripper(self, bus: int, reason: str) -> None:
+        if bus in self._gripper_faulted_buses:
             return
-        self._gripper_faulted = True
-        self._gripper_calibrated = False
-        self._disable_grippers()
-        self.logger.error(f"SONIC夹爪校准失败：{reason}；左右夹爪已退出电机模式")
+        self._gripper_faulted_buses.add(bus)
+        self._gripper_ready_buses.discard(bus)
+        self._disable_gripper(bus)
+        side = "左" if bus == self._left_bus else "右"
+        self.logger.error(
+            f"SONIC{side}夹爪不可用：{reason}；该侧已退出电机模式，"
+            "另一侧继续独立运行"
+        )
 
     def _update_gripper(self, dt: float) -> None:
         if not self.hardware_gripper or not self._gripper_session_active:
-            return
-        if self._gripper_faulted:
             return
         now = time.monotonic()
         if not self._gripper_armed:
@@ -674,31 +696,20 @@ class SonicTeleopState(
         with self._gripper_feedback_lock:
             feedback = dict(self._gripper_feedback)
 
-        waiting_buses = tuple(
-            bus
-            for bus, calibrator in self._gripper_calibrators.items()
-            if calibrator.phase is CalibrationPhase.WAITING_FEEDBACK
-        )
-        if waiting_buses and not all(bus in feedback for bus in waiting_buses):
-            for bus in waiting_buses:
-                calibrator = self._gripper_calibrators[bus]
-                if bus not in feedback:
-                    calibrator.update(None, now, dt)
-                if calibrator.failed:
-                    self._fail_gripper_session(
-                        calibrator.failure_reason or "unknown calibration error"
-                    )
-                    return
-            return
+        if self._gripper_ready_buses:
+            self._refresh_gripper_enable(now)
 
         for bus, calibrator in self._gripper_calibrators.items():
+            if bus in self._gripper_faulted_buses:
+                continue
             target = calibrator.update(feedback.get(bus), now, dt)
             self._log_gripper_phase_change(bus, calibrator)
             if calibrator.failed:
-                self._fail_gripper_session(
+                self._fail_gripper(
+                    bus,
                     calibrator.failure_reason or "unknown calibration error"
                 )
-                return
+                continue
             if target is not None and not calibrator.ready:
                 self._publish_gripper_target(
                     bus,
@@ -706,26 +717,22 @@ class SonicTeleopState(
                     kp=self._gripper_calibration_kp,
                     kd=self._gripper_calibration_kd,
                 )
-
-        if not all(
-            calibrator.ready for calibrator in self._gripper_calibrators.values()
-        ):
-            return
-
-        if not self._gripper_calibrated:
-            self._gripper_calibrated = True
-            details = []
-            for bus, calibrator in self._gripper_calibrators.items():
+            if not calibrator.ready:
+                continue
+            if bus not in self._gripper_ready_buses:
+                self._gripper_ready_buses.add(bus)
                 side = "左" if bus == self._left_bus else "右"
-                details.append(
-                    f"{side}[闭={calibrator.closed_position:.3f}, "
-                    f"开={calibrator.open_position:.3f}]"
+                self.logger.info(
+                    f"SONIC{side}夹爪校准完成，PICO {side} trigger开始接管："
+                    f"闭={calibrator.closed_position:.3f}, "
+                    f"开={calibrator.open_position:.3f}"
                 )
-            self.logger.info("SONIC夹爪校准完成，PICO trigger开始接管：" + ", ".join(details))
-
-        self._refresh_gripper_enable(now)
-        self._publish_gripper(self._left_bus, self._left_trigger)
-        self._publish_gripper(self._right_bus, self._right_trigger)
+            trigger = (
+                self._left_trigger
+                if bus == self._left_bus
+                else self._right_trigger
+            )
+            self._publish_gripper(bus, trigger)
 
 
 __all__ = [
