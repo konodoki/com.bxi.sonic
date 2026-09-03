@@ -184,6 +184,5 @@ class IndependentGripperTest(unittest.TestCase):
         self.assertTrue(calibrator.failed)
         self.assertIn("feedback timed out", calibrator.failure_reason or "")
 
-
 if __name__ == "__main__":
     unittest.main()

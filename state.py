@@ -586,14 +586,28 @@ class SonicTeleopState(
         self._last_gripper_enable_time = now
 
     def _refresh_gripper_enable(self, now: float) -> None:
-        last_enable_time = self._last_gripper_enable_time
+        if getattr(self, "_gripper_publisher", None) is None:
+            return
+        # Some lightweight test doubles initialize only the fields needed for
+        # calibration; treat a missing timestamp as requiring an enable.
+        last_enable_time = getattr(self, "_last_gripper_enable_time", None)
         if (
             last_enable_time is None
             or now - last_enable_time >= self.gripper_enable_interval_s
         ):
+            # Keep the motor mode alive while calibration is still in
+            # progress as well as after a side becomes ready.  A lost first
+            # enable frame must not leave an otherwise healthy motor waiting
+            # for a response until the calibration timeout.  Faulted buses
+            # are excluded by _publish_gripper_enable().
+            active_buses = tuple(
+                bus
+                for bus in self._gripper_calibrators
+                if bus not in self._gripper_faulted_buses
+            )
             self._publish_gripper_enable(
                 now,
-                tuple(self._gripper_ready_buses),
+                active_buses,
             )
 
     def _disable_grippers(self) -> None:
@@ -696,8 +710,11 @@ class SonicTeleopState(
         with self._gripper_feedback_lock:
             feedback = dict(self._gripper_feedback)
 
-        if self._gripper_ready_buses:
-            self._refresh_gripper_enable(now)
+        # Re-send enter_motor_mode throughout calibration.  This is
+        # intentionally independent of _gripper_ready_buses: an unready
+        # motor still needs periodic enable frames in order to produce the
+        # feedback required to finish calibration.
+        self._refresh_gripper_enable(now)
 
         for bus, calibrator in self._gripper_calibrators.items():
             if bus in self._gripper_faulted_buses:
