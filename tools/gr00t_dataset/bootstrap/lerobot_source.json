@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/huggingface/lerobot",
+  "commit": "a445d9c9da6bea99a8972daa4fe1fdd053d711d2",
+  "source_archive_url": "https://codeload.github.com/huggingface/lerobot/tar.gz/a445d9c9da6bea99a8972daa4fe1fdd053d711d2",
+  "source_archive_sha256": "5907e2d8cb33fe149fdd0cc91299d3e7080f3c677a015656386d41f32b276487",
+  "wheel": "lerobot-0.1.0-py3-none-any.whl",
+  "wheel_sha256": "0f0b23382c51584f995d2ca452c034b651b5c74589294c3a63b07bb6fb36308f",
+  "wheel_bytes": 372959,
+  "upstream_python_files_byte_verified": 97,
+  "validated_git_install_python_files_byte_verified": 97,
+  "source_modifications": [],
+  "license": "Apache-2.0; original LICENSE included inside wheel",
+  "build_command": "python -m pip wheel --no-deps --wheel-dir OUTPUT PINNED_SOURCE"
+}

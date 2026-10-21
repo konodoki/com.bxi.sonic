@@ -49,3 +49,5 @@ bash tools/pico_collection/sonic_pico_collection_20261019_r7/listen.sh \
 依赖目录名v13沿用已经安装的环境，与采集发行号v14无关。test-01使用配套v14升级脚本保留原systemd入口，仅重启空闲采集服务。请先完成当前任务的保存/弃用；脚本不停止hw、keyboard、SONIC或夹爪。
 
 依赖安装默认直连，忽略继承的代理及 pip/git 配置，避免机器人继承 `127.0.0.1:17897` 这类工作站代理。仅作用于安装子进程，不修改系统设置；需要代理时，在运行 `prepare_online_runtime.sh` 的机器上设置 `SONIC_INSTALL_PROXY` 为该机器实际可访问的代理地址。下载失败时保留已安装依赖，下次重试继续安装；全部依赖检查通过后才进行部署。
+
+LeRobot 固定提交的 wheel 已随 `bootstrap/` 提供，安装时核对 SHA256，从本地安装，不再在机器人上执行 GitHub clone。来源提交、源码归档和 wheel 指纹见 `bootstrap/lerobot_source.json`；官方 Python 源码未修改。已安装且版本匹配的 Torch 和其余写入依赖直接复用。新机器首次安装仍需下载其余 Python 依赖，不将此包称为全量离线环境。

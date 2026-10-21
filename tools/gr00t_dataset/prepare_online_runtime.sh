@@ -37,10 +37,34 @@ sys.path.insert(0,wheel)
 from pip._internal.cli.main import main
 raise SystemExit(main(['install','--no-index','--no-deps',wheel]))
 PYBOOT
-"$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 'torch==2.6.0' 'torchvision==0.21.0'
-"$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-cache-dir -r "$ONLINE_TOOLS/requirements-online.txt" -c "$ONLINE_TOOLS/ONLINE_RUNTIME_LOCK.txt"
-if ! "$ONLINE_PYTHON" -B -c 'import importlib.metadata as m,json; assert json.loads(m.distribution("lerobot").read_text("direct_url.json"))["vcs_info"]["commit_id"] == "a445d9c9da6bea99a8972daa4fe1fdd053d711d2"' 2>/dev/null; then
-  "$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-cache-dir --no-deps 'lerobot @ git+https://github.com/huggingface/lerobot.git@a445d9c9da6bea99a8972daa4fe1fdd053d711d2'
+if "$ONLINE_PYTHON" -B -c 'import importlib.metadata as m; assert m.version("torch")=="2.6.0+cpu" and m.version("torchvision")=="0.21.0+cpu"' 2>/dev/null; then
+  echo 'CPU_TORCH_ALREADY_INSTALLED: reuse; no download'
+else
+  "$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 'torch==2.6.0' 'torchvision==0.21.0'
+fi
+if "$ONLINE_PYTHON" -B - "$ONLINE_TOOLS/ONLINE_RUNTIME_LOCK.txt" "$ONLINE_TOOLS/requirements-online.txt" <<'PYCHECK'
+import importlib.metadata as metadata
+from pathlib import Path
+import sys
+try:
+    for filename in sys.argv[1:]:
+        for line in Path(filename).read_text().splitlines():
+            if not line.strip() or line.lstrip().startswith('#'):
+                continue
+            name, version = line.strip().split('==')
+            if metadata.version(name) != version:
+                raise ValueError(name)
+except (metadata.PackageNotFoundError, ValueError):
+    raise SystemExit(1)
+PYCHECK
+then
+  echo 'ONLINE_BASE_ALREADY_INSTALLED: reuse; no download'
+else
+  "$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-cache-dir -r "$ONLINE_TOOLS/requirements-online.txt" -c "$ONLINE_TOOLS/ONLINE_RUNTIME_LOCK.txt"
+fi
+if ! "$ONLINE_PYTHON" -B "$ONLINE_TOOLS/check_online_runtime.py" --source-only 2>/dev/null; then
+  "$ONLINE_PYTHON" -B "$ONLINE_TOOLS/check_online_runtime.py" --check-wheel
+  "$ONLINE_PYTHON" -m pip install --disable-pip-version-check --no-index --no-deps --force-reinstall "$ONLINE_TOOLS/bootstrap/lerobot-0.1.0-py3-none-any.whl"
 fi
 "$ONLINE_PYTHON" -B "$ONLINE_TOOLS/check_online_runtime.py"
 printf '%s\n' 'NVIDIA_SONIC_ONLINE_WRITER_V13' > "$ONLINE_ENV/ONLINE_WRITER_READY"
