@@ -37,8 +37,8 @@ REQUIRED = [
 R7 = 'tools/pico_collection/sonic_pico_collection_20261019_r7/'
 REQUIRED += [R7+p for p in ('listen.sh','start.sh','environment.sh','configure.py','delivery_paths.py',
  'collector/check_config.py','collector/config/left_wrist_usb.yaml','collector/config/right_wrist_usb.yaml',
- 'official_node.py','official_session.py','resident_launcher.py','sonic_collection_vendor/recording_commands.py')]
-ACTIVE = [R7+p for p in ('environment.sh','configure.py','delivery_paths.py','resident_launcher.py','official_node.py','official_session.py')]
+ 'official_node.py','official_session.py','resident_launcher.py','collection_health.py','sonic_collection_vendor/recording_commands.py')]
+ACTIVE = [R7+p for p in ('environment.sh','configure.py','delivery_paths.py','resident_launcher.py','official_node.py','official_session.py','collection_health.py')]
 ACTIVE += ['tools/collection_review/download.py', 'tools/collection_review/review.py',
            'tools/collection_review/export_all.py', 'tools/collection_review/validate_exports.py',
            'tools/camera_clock/build.py']

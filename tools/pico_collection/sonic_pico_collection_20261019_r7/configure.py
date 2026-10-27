@@ -6,7 +6,7 @@ import yaml
 from real_robot_collection.gripper_identity import identities
 from delivery_paths import data_root, site
 
-COLLECTOR_RELEASE = "20261022-collection-16-opening-mm"
+COLLECTOR_RELEASE = "20261026-collection-17-resident-recovery"
 
 ROOT = Path(__file__).resolve().parent
 PORTS = site()['wrist_usb_ports']

@@ -1,6 +1,6 @@
 # 客户部署入口
 
-当前版本：20261026-mm-v16-camera-tools。BXI demo04 / 数采v16，闭合0mm、打开70mm。当前预编译运行库支持Ubuntu22.04 x86_64 / ROS2 Humble；其他平台须重新构建并验证。
+当前版本：20261027-mm-v17-resident-recovery。BXI demo04 / 数采v17，闭合0mm、打开70mm。当前预编译运行库支持Ubuntu22.04 x86_64 / ROS2 Humble；其他平台须重新构建并验证。
 
 ## 外部依赖与站点配置
 
@@ -44,9 +44,9 @@ bash tools/pico_collection/sonic_pico_collection_20261019_r7/listen.sh \
   --left bxi --right bxi --left-id 1 --right-id 1 --left-bus 5 --right-bus 6
 ```
 
-r7、v13是兼容目录名，实际采集发行号为v16。依赖安装复用已装版本，LeRobot wheel随包提供，其他Python依赖仍可能需要下载。
+r7、v13是兼容目录名，实际采集发行号为v17。依赖安装复用已装版本，LeRobot wheel随包提供，其他Python依赖仍可能需要下载。
 
-左握持+A开始/保存，左握持+B弃用；A+X暂停/恢复同条episode。与扳机键不同。此入口是前台监听，不改systemd服务，不发电机命令。已有监听器时不要重复开。确认RECORDING且accepted_rows持续增长；结束后确认saved/discarded结果。相机/记录器崩溃会退出，当前不自动恢复录制；先查进程日志，恢复设备后由操作者重新启动到待机。
+左握持+A开始/保存，左握持+B弃用；A+X暂停/恢复同条episode。与扳机键不同。此入口是前台监听，不改systemd服务，不发电机命令。已有监听器时不要重复开。确认RECORDING且accepted_rows持续增长；结束后确认saved/discarded结果。v17在相机/记录器异常后报告原因、收尾当前条，并自动恢复待机。设备缺失/占用时每5秒检查；恢复后先松开按键，再手动开始新一条。不会自动续录中断条。SONIC及A+X控制逻辑不变；详见[中止与恢复说明](../pico_collection/RECOVERY_V17.md)。
 
 [三相机人工检查](../../docs/CAMERA_MANUAL_CHECK.md) · [数采操作](../pico_collection/README.md) · [具体数据字段](../../docs/COLLECTION_DATA_FORMAT.md)
 
@@ -80,4 +80,4 @@ python3 tools/customer/check_delivery.py
 python3 tools/customer/build_delivery.py /库外的交付输出目录
 ```
 
-包名包含20261026，源码、校验、入口和相对链接一致。资源检查通过不替代客户设备权限/驱动验收。相机补丁构建和现场结果见[相机说明](../camera_clock/README.md)。
+包名包含20261027，源码、校验、入口和相对链接一致。资源检查通过不替代客户设备权限/驱动验收。相机补丁构建和现场结果见[相机说明](../camera_clock/README.md)。

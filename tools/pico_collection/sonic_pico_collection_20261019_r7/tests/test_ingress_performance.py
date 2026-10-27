@@ -5,13 +5,14 @@ from pathlib import Path
 from types import SimpleNamespace as NS
 import numpy as np
 R=Path(__file__).resolve().parents[1]
-sys.path[:0]=[str(R/'collector'),str(R.parents[1]/'gr00t_dataset')]
+sys.path[:0]=[str(R),str(R/'collector'),str(R.parents[1]/'gr00t_dataset')]
 from contract import CAMERAS,MODEL_SHA,RAW_JOINTS
+from collection_health import reason,exception_reason,input_health
 from real_robot_collection.contracts import canonicalize_named,sonic_projected_gravity
 from real_robot_collection.synchronization import quaternion_multiply_wxyz
 ns=dict(np=np,json=json,queue=queue,time=time,CAMERAS=CAMERAS,MODEL_SHA=MODEL_SHA,
     canonicalize_named=canonicalize_named,sonic_projected_gravity=sonic_projected_gravity,
-    quaternion_multiply_wxyz=quaternion_multiply_wxyz)
+    quaternion_multiply_wxyz=quaternion_multiply_wxyz,reason=reason,exception_reason=exception_reason,input_health=input_health)
 cls=next(n for n in ast.parse((R/'official_node.py').read_text()).body if isinstance(n,ast.ClassDef))
 cls.bases=[]
 exec(compile(ast.Module(body=[cls],type_ignores=[]),str(R/'official_node.py'),'exec'),ns)
@@ -45,7 +46,7 @@ class IngressTests(unittest.TestCase):
   for i in range(32):n.inference(self.msg(i))
   started=time.monotonic();n.inference(self.msg(32))
   self.assertLess(time.monotonic()-started,.1)
-  self.assertTrue(n.quit.is_set());self.assertIn('cannot keep up',n.failure)
+  self.assertTrue(n.quit.is_set());self.assertIn('cannot keep up',n.failure['detail'])
   n.inference(self.msg(33));self.assertEqual(n.queue.qsize(),32)
  def test_saving_or_idle_drains_dds_without_filling_writer_queue(self):
   n=self.node()
@@ -64,4 +65,15 @@ class IngressTests(unittest.TestCase):
  def test_old_sensor_timestamp_is_preserved_not_30ms_filtered(self):
   n=self.node();n.put('state',NS(position=[0.]*31,name=RAW_JOINTS),99.8);n.inference(self.msg())
   self.assertEqual(n.queue.get()[1][1]['source_stamps']['state'],99.8)
+ def test_shutdown_does_not_replay_queued_start_button(self):
+  n=self.node();seen=[];n.queue.put(('command',('toggle',1)));n.quit.set()
+  n.session.handle=lambda *x:seen.append(x);n.session.close=lambda:None;n.session.data_exporter=None
+  n.session.publish_status=lambda:dict(phase='WAITING_FOR_BUTTON',accepted_rows=0,missing=[])
+  n.write_loop();self.assertEqual(seen,[])
+ def test_camera_loss_interrupts_recording_but_ax_pause_alone_does_not(self):
+  n=self.node();n.state_info=('com.bxi.sonic/sonic_teleop',time.monotonic());n.last_health_notice=None;n.last_token_at=None
+  n.gate=NS(events={},last_reason='no_edge',last_rejection=None,rejected=0)
+  n.monitor();self.assertFalse(n.quit.is_set())
+  key=next(iter(CAMERAS));old=n.cache[key];n.cache[key]=(old[0],old[1],time.monotonic()-3.)
+  n.monitor();self.assertTrue(n.quit.is_set());self.assertEqual(n.failure['code'],'camera_stream_lost')
 if __name__=='__main__':unittest.main()

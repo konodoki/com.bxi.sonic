@@ -1,3 +1,5 @@
+> 当前维护版：v17常驻恢复；见[恢复说明](../RECOVERY_V17.md)与[统一入口](../../customer/README.md)。下文旧版本步骤仅用于追溯。
+
 # ELF3 PICO 数据采集
 
 当前在线版本为v13：直接调用官方SONIC写入器保存MP4和Parquet，不再使用v12的JPEG队列。见[在线采集说明](../../gr00t_dataset/ONLINE_COLLECTION.md)。下文旧JPEG步骤仅用于历史记录；新格式也由同一下载检查/离线训练导出入口读取。

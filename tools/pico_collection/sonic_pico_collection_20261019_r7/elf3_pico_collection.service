@@ -1,6 +1,7 @@
 [Unit]
 Description=ELF3 PICO collection button listener (no robot control)
 After=network.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -10,7 +11,8 @@ SupplementaryGroups=video
 UMask=0077
 WorkingDirectory=/home/bxi/sonic_pico_collection_20261019_r7
 ExecStart=/usr/bin/bash /home/bxi/sonic_pico_collection_20261019_r7/listen.sh --left bxi --right bxi --left-id 1 --right-id 1 --left-bus 6 --right-bus 5
-Restart=no
+Restart=on-failure
+RestartSec=5
 KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=infinity

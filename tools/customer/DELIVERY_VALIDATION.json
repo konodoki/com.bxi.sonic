@@ -1,6 +1,6 @@
 {
-  "release": "20261026-mm-v16-camera-tools",
-  "tested_at": "2026-10-26",
+  "release": "20261027-mm-v17-resident-recovery",
+  "tested_at": "2026-10-27",
   "offline_tests": {
     "download_review_outcome": 24,
     "transfer_orchestration": 3,
@@ -31,9 +31,9 @@
   "robot_modified": false,
   "finetuning_run": false,
   "limitations": [
-    "Collector service fault recovery remains unresolved",
     "Remaining camera frame age is not removed",
-    "Loader check samples selected windows; not a training run"
+    "Loader check samples selected windows; not a training run",
+    "v17 installed and listener idle confirmed; field disconnect/reconnect and fresh recording validation pending"
   ],
   "package_relocation": {
     "entry_links": "PASS",
@@ -52,5 +52,20 @@
     "conda_dynamic_link_paths": 0,
     "shared_workstation_environments_removed": false,
     "hardware_commands": 0
+  },
+  "collection_recovery_v17": {
+    "offline_regressions_passed": 78,
+    "offline_regressions_skipped": 1,
+    "official_writer_interruption_test": "PASS",
+    "synthetic_rows": 12,
+    "decoded_video_frames": 36,
+    "field_install_date": "2026-10-27",
+    "field_release": "20261026-collection-17-resident-recovery",
+    "field_phase": "WAITING_FOR_BUTTON",
+    "automatic_listener_recovery": true,
+    "automatic_recording": false,
+    "field_reconnect_test": "PENDING",
+    "field_recording_test": "PENDING",
+    "publisher_robot_actions": 0
   }
 }

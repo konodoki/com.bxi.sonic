@@ -12,4 +12,4 @@ python3 tools/customer/check_delivery.py
 python3 tools/customer/build_delivery.py /库外的交付目录
 ```
 
-refresh_manifest只对已经审阅/测试的改动运行，不能用它掩盖未知文件被替换。完整默认pytest发现含历史角度合同测试，不作为当前毫米发行的验收命令；本次适用测试及历史记录见RELEASE_20261026.md。
+refresh_manifest只对已经审阅/测试的改动运行，不能用它掩盖未知文件被替换。完整默认pytest发现含历史角度合同测试，不作为当前毫米发行的验收命令；v17适用测试见RELEASE_20261027_V17.md，旧发行验证见RELEASE_20261026.md。

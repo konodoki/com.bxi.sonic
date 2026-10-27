@@ -1,11 +1,12 @@
-> 2026-10-22当前版本：BXI demo04 / 数采v16，夹爪开口0～70mm；旧角度参数和v15验证记录仅供历史追溯。使用[毫米协议与合同说明](../../docs/GRIPPER_MM_PROTOCOL_20261022.md)。新版本尚未真机验证。
+# PICO数采维护入口
 
-# PICO采集工具
+当前本地源码：`20261026-collection-17-resident-recovery`。v17已完成离线回归；10月27日现场已安装并进入WAITING_FOR_BUTTON，断线恢复和本版新录制仍待验证。BXI夹爪合同仍为0～70mm。
 
-当前本地源码 `20261021-collection-12-latest-received`；本版尚待人工部署和真机验证。现场此前确认的是v11。
+- 左握持键+A：开始/保存；左握持键+B：弃用。
+- A+X：原有POSE暂停/恢复，前后仍属同一条；采用既有官方写入/清理逻辑。
+- 数采后台常驻；相机设备缺失、占用或子进程退出时显示原因，条件恢复后自动回到等待录制。
+- 异常中止保留已有文件和原因，不标成成功保存，不自动重录/续录。
 
-详见[当前采集说明](sonic_pico_collection_20261019_r7/README.md)和[客户部署入口](../customer/README.md)。目录名保留兼容已有服务。
+[客户统一入口](../customer/README.md) · [v17中止与恢复说明](RECOVERY_V17.md) · [在线写入逻辑](../gr00t_dataset/ONLINE_COLLECTION.md) · [训练导出](../gr00t_dataset/README.md)
 
-本版按官方最近值语义保存状态、IMU和图像，取消30ms配对丢行；ROS输入接收与组装分开。机器人保存后只收尾，完整JPEG读回检查在工作站进行。按键仍为左握持键+A开始/保存、左握持键+B弃用，A+X暂停后续采同一条。
-
-[训练导出](../gr00t_dataset/README.md)继续复用官方SONIC写入器；暂停前后合成同一训练episode。客户依赖、modality、66维动作合同均随独立库提供。
+旧r7/v7等目录名是现场兼容路径，版本以`COLLECTOR_RELEASE`及启动日志为准。

@@ -3,6 +3,7 @@
 import argparse
 from collections import Counter
 import json
+import os
 from pathlib import Path
 import queue
 import signal
@@ -28,6 +29,7 @@ from real_robot_collection.contracts import canonicalize_named, sonic_projected_
 from real_robot_collection.synchronization import decode_raw_image, quaternion_multiply_wxyz
 from real_robot_collection.gripper_identity import check_sample_identity
 from contract import CAMERAS, MODEL_SHA
+from collection_health import input_health, reason, exception_reason
 
 
 def stamp(msg):
@@ -49,6 +51,9 @@ class Collector(Node):
         self.counts=Counter()
         self.last_inference=None
         self.performance={}
+        self.last_health_notice=None
+        self.state_info=None
+        self.last_token_at=None
         self.quit=threading.Event()
         self.groups=[]
         self.subscriptions_owned=[]
@@ -70,6 +75,7 @@ class Collector(Node):
         sub(Imu,robot['imu_topic'],self.imu)
         sub(String,cfg['gripper']['sample_topic'],self.gripper)
         sub(String,cfg['motion_token']['topic'],self.inference,reliable)
+        sub(String,robot['state_machine_topic'],self.robot_status)
         for key,raw in CAMERAS.items():
             sub(Image,cfg['cameras'][raw]['topic'],lambda m,k=key:self.put(k,decode_raw_image(m),stamp(m)))
         self.pico=PicoSubscriber(cfg['pico']['host'],cfg['pico']['port'],'pose')
@@ -80,9 +86,34 @@ class Collector(Node):
         self.mode=None
         group=MutuallyExclusiveCallbackGroup();self.groups.append(group)
         self.create_timer(.01,self.buttons,callback_group=group)
+        self.create_timer(1.,self.monitor,callback_group=group)
         self.worker=threading.Thread(target=self.write_loop,name='official-writer')
         self.worker.start()
-        print('PICO_COLLECTION_LISTENER_READY: left grip+A starts/saves; left grip+B discards. No motor commands.',flush=True)
+        print('PICO_COLLECTION_LISTENER_READY: 已恢复按键监听，请先松开按键；输入是否齐全见COLLECTION_HEALTH。left grip+A starts/saves; left grip+B discards. No motor commands.',flush=True)
+
+    def robot_status(self,msg):
+        self.state_info=(str(json.loads(msg.data).get('current',{}).get('name','')),time.monotonic())
+
+    def monitor(self):
+        now=time.monotonic()
+        with self.lock:snapshot=dict(self.cache)
+        info=self.state_info
+        health=input_health(snapshot,self.manager.latest(),now,CAMERAS,
+            state_name=info[0] if info else None,state_age=now-info[1] if info else None)
+        health['token_age_s']=None if self.last_token_at is None else now-self.last_token_at
+        health['button_events']=dict(self.gate.events)
+        health['button_last_reason']=self.gate.last_reason
+        health['button_last_rejection']=self.gate.last_rejection
+        health['button_rejected']=self.gate.rejected
+        self.session.health=health
+        self.session.missing=health['missing']
+        notice=(tuple(health['missing']),tuple(health['stale']),health['manager_connected'],health['robot_state'])
+        if notice!=self.last_health_notice:
+            print('COLLECTION_HEALTH='+json.dumps(health,ensure_ascii=False),flush=True)
+            self.last_health_notice=notice
+        if self.session.recording and not self.session.busy and health['camera_stalled']:
+            self.failure=reason('camera_stream_lost',','.join(health['camera_stalled']))
+            self.quit.set()
 
     @staticmethod
     def body(values,names):
@@ -122,11 +153,12 @@ class Collector(Node):
         except queue.Full:
             # Blocking here used to leave old tokens in DDS while state/images
             # advanced. Never silently mix them or grow memory without bounds.
-            self.failure='collection writer cannot keep up: receive queue full'
+            self.failure=reason('writer_overload','collection writer cannot keep up: receive queue full')
             self.quit.set()
-            self.get_logger().error(self.failure)
+            self.get_logger().error(json.dumps(self.failure,ensure_ascii=False))
 
     def inference(self,msg):
+        self.last_token_at=time.monotonic()
         # Keep draining DDS while idle/saving. Those tokens belong to no episode.
         if not self.session.recording or self.session.busy or self.quit.is_set():
             return
@@ -176,6 +208,7 @@ class Collector(Node):
         self.enqueue(('frame',(frame,provenance)))
 
     def buttons(self):
+        if self.quit.is_set():return
         for packet in self.manager.after(self.manager_at):
             self.manager_at=packet.received_monotonic
             mode=packet.stream_mode==1 and packet.calibrated
@@ -184,6 +217,8 @@ class Collector(Node):
                 self.mode=mode
             event=self.gate.accept(packet,time.monotonic(),time.time())
             if event:
+                print('COLLECTION_BUTTON='+json.dumps(dict(event=event,recording=self.session.recording,
+                    busy=self.session.busy,mode=packet.stream_mode)),flush=True)
                 if self.session.busy:
                     self.counts['button_while_saving']+=1
                     print('COLLECTION_BUSY: official writer is finishing the previous episode',flush=True)
@@ -206,16 +241,16 @@ class Collector(Node):
                     self.performance=dict(add_frame_ms=(time.monotonic()-started)*1000,
                         writer_queue_age_ms=provenance['writer_queue_age_s']*1000,
                         inference_receipt_delay_ms=provenance['inference_receipt_delay_s']*1000)
-                elif kind=='command':self.session.handle(*value)
+                elif kind=='command' and not self.quit.is_set():self.session.handle(*value)
                 if time.monotonic()-last_status>=1:
                     status=self.session.publish_status()
                     print('COLLECTION_STATE='+json.dumps(dict(phase=status['phase'],accepted_rows=status['accepted_rows'],
                         missing=status['missing'],queue=self.queue.qsize(),counts=self.counts,
-                        performance=self.performance,encoders={k:w.performance() for k,w in
+                        performance=self.performance,health=status.get('health'),reason=status.get('reason'),encoders={k:w.performance() for k,w in
                             (self.session.data_exporter.video_writers.items() if self.session.data_exporter is not None else [])})),flush=True)
                     last_status=time.monotonic()
         except BaseException as exc:
-            self.failure=str(exc);self.quit.set()
+            self.failure=exception_reason(exc);self.quit.set()
         finally:
             try:
                 if self.failure:
@@ -225,6 +260,11 @@ class Collector(Node):
             except BaseException as exc:self.failure=str(exc);self.session.fail(exc)
 
     def close(self):
+        # Supervisor writes the actual cause before asking us to drain/close.
+        path=os.environ.get('COLLECTION_STOP_REASON')
+        if path and Path(path).is_file() and not self.failure:
+            try:self.failure=json.loads(Path(path).read_text())
+            except (OSError,ValueError):self.failure=reason('operator_stop')
         self.pico.close();self.manager.close()
         # Stop ingress, drain already frozen frames, then finalize. No full-queue
         # sentinel and no backpressure in a ROS callback.
@@ -240,6 +280,9 @@ def main():
     try:
         while rclpy.ok() and not node.quit.is_set():executor.spin_once(timeout_sec=.2)
     except KeyboardInterrupt:pass
+    except Exception as exc:
+        node.failure=exception_reason(exc,'ros_receive_error')
+        node.quit.set()
     finally:
         node.quit.set() if node.failure else None
         executor.shutdown()

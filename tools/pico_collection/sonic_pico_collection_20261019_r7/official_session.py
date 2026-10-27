@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'gr00t_dataset'))
 import official_writer
 from contract import CAMERAS
 from configure import COLLECTOR_RELEASE
+from collection_health import exception_reason, reason
 from session_protocol import atomic_json
 from sonic_collection_vendor.episode_state import EpisodeState
 from sonic_collection_vendor.recording_commands import RecordingCommands
@@ -45,8 +46,12 @@ class OfficialSession(RecordingCommands):
         self.missing = []
         self.error = None
         self.busy = False
+        self.health = {}
+        self.failure_reason = None
 
     def _print_and_say(self, text, **kwargs):
+        if text == 'Discarded episode' and self.failure_reason:
+            text = '中断条已收尾并保留，不计入正常保存数据'
         print('COLLECTION: ' + text, flush=True)
 
     @property
@@ -75,6 +80,7 @@ class OfficialSession(RecordingCommands):
             self.output.mkdir(parents=True)
             self.source = (self.output/'source.jsonl').open('x')
             self.rows, self.pauses, self.error = 0, [], None
+            self.failure_reason = None
             atomic_json(self.folder/'capture.json', dict(collector_release=COLLECTOR_RELEASE,
                 created_unix=time.time(), expected_grippers=self.cfg['gripper']['expected_identities'],
                 storage_backend='nvidia_sonic_lerobot_v2', output=str(self.output)))
@@ -119,6 +125,7 @@ class OfficialSession(RecordingCommands):
         self.source = None
         report=dict(schema='official-collection-session-v1',collector_release=COLLECTOR_RELEASE,
             outcome=outcome, num_frames=self.rows, events=self.pauses, error=self.error,
+            reason=self.failure_reason,
             lerobot_path=str(self.output/'lerobot') if self.rows else None,
             empty=self.rows == 0, hardware_commands_sent=0)
         atomic_json(self.folder/'session_result.json',report)
@@ -131,10 +138,12 @@ class OfficialSession(RecordingCommands):
         print('COLLECTION_FINISHED='+json.dumps(report),flush=True)
 
     def fail(self, error):
-        self.error = str(error)
+        self.failure_reason = (error if isinstance(error, dict) else exception_reason(error))
+        self.error = self.failure_reason['message'] + ': ' + self.failure_reason['detail']
+        print('COLLECTION_INTERRUPTED='+json.dumps(self.failure_reason, ensure_ascii=False), flush=True)
         # Keep evidence, never claim an encoder/write error is a successful save.
-        if self.folder is not None:
-            atomic_json(self.folder/'failure.json',dict(error=self.error,rows=self.rows))
+        if self.folder is not None and (self.source is not None or self.busy or self.recording):
+            atomic_json(self.folder/'failure.json',dict(error=self.error,reason=self.failure_reason,rows=self.rows))
         self.publish_status()
 
     def publish_status(self):
@@ -147,12 +156,15 @@ class OfficialSession(RecordingCommands):
             updated_unix=time.time(),listener_pid=int(os.environ.get('COLLECTION_LISTENER_PID',os.getpid())),
             collector_release=COLLECTOR_RELEASE, storage_backend='nvidia_sonic_lerobot_v2',
             shortcuts={'left_grip+A':'start / save','left_grip+B':'discard','A+X':'pause / resume same episode'},
-            controller_modified=False,automatic_retry=False,error=self.error)
+            controller_modified=False,automatic_retry=False,error=self.error,
+            reason=self.failure_reason, health=self.health, automatic_listener_recovery=True,
+            automatic_recording=False)
         atomic_json(self.runs/'status.json',value,durable=False)
         return value
 
     def close(self):
         if self.recording and not self.error:
+            self.fail(reason('operator_stop'))
             self.handle('interrupt')
         if self.data_exporter is not None:
             official_writer.close(self.data_exporter)

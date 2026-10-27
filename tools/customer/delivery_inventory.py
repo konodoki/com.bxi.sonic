@@ -22,7 +22,7 @@ def deliverable(relative):
     s = p.as_posix()
     if any(part in EXCLUDED_PARTS for part in p.parts) or s in EXCLUDED_FILES or s.startswith(EXCLUDED_PREFIXES):
         return False
-    if s.startswith('tools/pico_collection/') and len(p.parts) == 3 and s != 'tools/pico_collection/README.md':
+    if s.startswith('tools/pico_collection/') and len(p.parts) == 3 and s not in {'tools/pico_collection/README.md', 'tools/pico_collection/RECOVERY_V17.md'}:
         return False  # frozen test-01 upload packages/installers, not customer entries
     return not s.endswith(('.pyc', '.tgz', '.tgz.sha256'))
 

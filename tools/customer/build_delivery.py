@@ -17,7 +17,7 @@ if __name__ == '__main__':
     output=a.output_dir.expanduser().resolve()
     if output == REPO or REPO in output.parents: raise SystemExit('output must be outside source repo')
     output.mkdir(parents=True,exist_ok=True)
-    target=output/'sonic_customer_20261026_mm_v16_camera_tools.tar.gz'
+    target=output/'sonic_customer_20261027_mm_v17_resident_recovery.tar.gz'
     if target.exists(): raise SystemExit('refusing to overwrite '+str(target))
     inventory={}
     selected=files()
@@ -46,7 +46,7 @@ if __name__ == '__main__':
             if data[:4]==b'\x7fELF' and not src.name.endswith('.so'): info.mode=0o755
             info.size=len(data);tar.addfile(info,io.BytesIO(data))
             inventory[name]=hashlib.sha256(data).hexdigest()
-        data=(json.dumps(dict(release='20261026-mm-v16-camera-tools',files=inventory),indent=2)+'\n').encode()
+        data=(json.dumps(dict(release='20261027-mm-v17-resident-recovery',files=inventory),indent=2)+'\n').encode()
         info=tarfile.TarInfo('com.bxi.sonic/tools/customer/DELIVERY_MANIFEST.json');info.size=len(data);info.mode=0o644
         tar.addfile(info,io.BytesIO(data))
     digest=hashlib.file_digest(target.open('rb'),'sha256').hexdigest() if hasattr(hashlib,'file_digest') else hashlib.sha256(target.read_bytes()).hexdigest()
