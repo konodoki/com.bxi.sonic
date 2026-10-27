@@ -33,8 +33,7 @@
   "limitations": [
     "Remaining camera frame age is not removed",
     "Loader check samples selected windows; not a training run",
-    "v17 installed and listener idle confirmed; field disconnect/reconnect and fresh recording validation pending",
-    "demo05 exit-disable verified offline only; physical release not yet confirmed"
+    "v17 installed and listener idle confirmed; field disconnect/reconnect and fresh recording validation pending"
   ],
   "package_relocation": {
     "entry_links": "PASS",
@@ -73,7 +72,10 @@
     "unit_and_installer_tests": 13,
     "millimeter_lifecycle_regressions": 13,
     "hardware_commands": 0,
-    "field_install": "PENDING",
-    "field_exit_test": "PENDING"
+    "field_install": "USER_CONFIRMED",
+    "field_exit_test": "USER_CONFIRMED_PASS",
+    "field_test_date": "2026-10-27",
+    "field_evidence": "User report: 真机测试了，没毛病，改好了。",
+    "field_raw_logs_provided": false
   }
 }

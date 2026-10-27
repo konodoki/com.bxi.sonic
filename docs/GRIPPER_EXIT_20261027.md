@@ -26,13 +26,13 @@ sudo python3 tools/gripper_native/install_exit.py --workspace /实际/example工
 
 ## 验证
 
-离线13项生命周期/安装事务检查、13项真实毫米C库和SONIC父类回归通过。审阅已归档的现场example状态机：完成状态切换的统一入口先调用来源状态`on_exit`，再进入目标状态。暂未做新补丁真机验证。
+离线13项生命周期/安装事务检查、13项真实毫米C库和SONIC父类回归通过。审阅已归档的现场example状态机：完成状态切换的统一入口先调用来源状态`on_exit`，再进入目标状态。2026-10-27用户现场反馈“真机测试了，没毛病，改好了”，据此将退出失能修复记为真机测试通过（用户确认）。本次未附逐状态测试日志，不额外声称已逐项核验下列所有分支。
 
 ```bash
 python3 -m unittest discover -s tools/gripper_native -p 'test_*.py'
 ```
 
-现场每项单独验证：
+后续复测清单：
 
 1. 空夹爪进入SONIC，确认版本demo05、打开70mm、左右扳机响应。
 2. 依次验证SONIC→normal、重新进入SONIC→pd_brake、重新进入SONIC→zero_torque，确认退出后夹爪不再保持出力。零力矩测试沿用现场原有支撑条件。
