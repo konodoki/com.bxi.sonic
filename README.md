@@ -2,14 +2,14 @@
 
 # SONIC / ELF3
 
-当前发布整理：**20261027-mm-v17-resident-recovery**。集成已现场使用的SONIC输入管理、BXI毫米夹爪demo04、官方数采v17、跟踪评测，以及已现场核对的相机时钟补丁。
+当前发布整理：**20261027-mm-v17-demo05-exit-disable**。集成已现场使用的SONIC输入管理、BXI毫米夹爪demo05（退出失能，待真机验证）、官方数采v17、跟踪评测，以及已现场核对的相机时钟补丁。
 
 | 功能 | 当前行为 |
 |---|---|
 | SONIC输入 | 完整连续10帧；成功推理后推进；断流保持参考 |
 | A+X | 切出POSE保持参考，切回恢复；官方清理后前后仍在同一episode |
 | BXI夹爪 | 左扳机→CAN5、右扳机→CAN6；使能后打开70mm，闭合0mm；KP2/KD0.05 |
-| 退出 | 停止发送夹爪命令；BXI故障不主动请求身体零力矩 |
+| 退出SONIC | 对本次使能过的BXI夹爪发送失能帧；不主动请求身体零力矩；A+X暂停POSE不触发退出 |
 | 数采 | 官方MP4/Parquet写入、保存/弃用和清理；v17分类报错、异常收尾与恢复待机 |
 | 训练合同 | 状态34维、动作66维；身体rad、夹爪开口mm；ELF3_NATIVE_1D/slot14 |
 | 相机时间 | 每次取帧更新单调时钟到墙钟的换算；保留真实内核帧时间 |
@@ -22,6 +22,7 @@
 - [数采操作](tools/pico_collection/README.md)；[数据导出与训练检查](tools/gr00t_dataset/README.md)
 - [批量下载、人工检查、GR00T读取](tools/collection_review/README.md)
 - [跟踪精度评测](tools/tracking_eval/README.md)
+- [夹爪退出失能补丁与验收](docs/GRIPPER_EXIT_20261027.md)
 - [毫米协议与参数](docs/GRIPPER_MM_PROTOCOL_20261022.md)；[相机时钟补丁](tools/camera_clock/README.md)
 - [本次发布、验证边界及待处理问题](docs/RELEASE_20261027_V17.md)
 - [维护与Git发布流程](docs/MAINTENANCE.md)

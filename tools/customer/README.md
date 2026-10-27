@@ -1,6 +1,6 @@
 # 客户部署入口
 
-当前版本：20261027-mm-v17-resident-recovery。BXI demo04 / 数采v17，闭合0mm、打开70mm。当前预编译运行库支持Ubuntu22.04 x86_64 / ROS2 Humble；其他平台须重新构建并验证。
+当前版本：20261027-mm-v17-demo05-exit-disable。BXI demo05 / 数采v17，闭合0mm、打开70mm。当前预编译运行库支持Ubuntu22.04 x86_64 / ROS2 Humble；其他平台须重新构建并验证。
 
 ## 外部依赖与站点配置
 
