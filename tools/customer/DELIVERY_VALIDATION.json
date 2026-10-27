@@ -1,5 +1,5 @@
 {
-  "release": "20261027-mm-v17-resident-recovery",
+  "release": "20261027-mm-v17-demo05-exit-disable",
   "tested_at": "2026-10-27",
   "offline_tests": {
     "download_review_outcome": 24,
@@ -67,5 +67,15 @@
     "field_reconnect_test": "PENDING",
     "field_recording_test": "PENDING",
     "publisher_robot_actions": 0
+  },
+  "gripper_exit_demo05": {
+    "unit_and_installer_tests": 13,
+    "millimeter_lifecycle_regressions": 13,
+    "hardware_commands": 0,
+    "field_install": "USER_CONFIRMED",
+    "field_exit_test": "USER_CONFIRMED_PASS",
+    "field_test_date": "2026-10-27",
+    "field_evidence": "User report: 真机测试了，没毛病，改好了。",
+    "field_raw_logs_provided": false
   }
 }

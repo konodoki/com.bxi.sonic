@@ -11,7 +11,7 @@ from .gripper import DMMotor, MotorFeedback
 from .state import SonicTeleopState
 from .bxi_gripper_protocol import settings as mm_settings, profile as mm_profile
 
-GRIPPER_RELEASE = '20261022-demo-04-opening-mm'
+GRIPPER_RELEASE = '20261027-demo-05-exit-disable'
 LIBRARY_PATH = Path(__file__).with_name('bxi_demo_native.so')
 OPEN_MM = 70.
 BYTES = C.c_uint8 * 8
@@ -92,7 +92,7 @@ class BxiDemoState(SonicTeleopState):
 
     def _demo_log(self, event, bus=None, **fields):
         try:
-            self._motion_log('warning' if event == 'failure' else 'info', 'SONIC夹爪DEMO ',
+            self._motion_log('warning' if event in ('failure', 'disable_send_failed') else 'info', 'SONIC夹爪DEMO ',
                              dict(release=GRIPPER_RELEASE, event=event, bus=bus,
                                   side=None if bus is None else 'left' if bus == self._left_bus else 'right',
                                   **fields))
@@ -120,7 +120,7 @@ class BxiDemoState(SonicTeleopState):
                 values = self._native.settings
                 self._gripper_profiles = {bus: mm_profile(bus, values) for bus in (5,6)}
                 self._demo_log('entry', **values, left_bus=self._left_bus, right_bus=self._right_bus,
-                               exit_action='stop_sending_only', body_zero_torque=False)
+                               exit_action='disable_enabled_sides', body_zero_torque=False)
             except Exception as exc:
                 self._demo_log('failure', reason='native_load: '+str(exc))
                 self._native = None
@@ -262,13 +262,28 @@ class BxiDemoState(SonicTeleopState):
         return True
 
     def _disable_grippers(self, repeats=1):
-        pass  # Normal exit/unbind intentionally sends neither close nor disable.
+        # Only release grippers enabled in this SONIC session. One failed bus
+        # must not prevent disabling the other or completing a body transition.
+        for _ in range(max(1, int(repeats))):
+            for bus, side in self._sides.items():
+                if side.enabled_at is None:
+                    continue
+                try:
+                    self._send(bus, bytes([255]*7+[253]))
+                    self._demo_log('disable_tx', bus, can_id=1, flags=5,
+                                   data='FFFFFFFFFFFFFFFD', physical_delivery_verified=False)
+                except Exception as exc:
+                    self._demo_log('disable_send_failed', bus, reason=str(exc),
+                                   physical_delivery_verified=False)
 
     def _fail_gripper_session(self, reason, ctx=None):
         # Also prevent accidental inherited DM calls from requesting a body state.
         self._demo_log('failure', reason=str(reason), body_action='none')
 
     def _end_demo(self):
+        # Called under _demo_lock, before publisher/native resources are freed.
+        self._gripper_session_active = self._gripper_armed = False
+        self._disable_grippers(repeats=3)
         for side in self._sides.values():
             if side.handle is not None:
                 self._native.lib.demo_free(side.handle)
@@ -281,7 +296,7 @@ class BxiDemoState(SonicTeleopState):
 
     def on_exit(self, ctx):
         with self._demo_lock:
-            self._demo_log('exit', action='stop_sending_only')
+            self._demo_log('exit', action='disable_enabled_sides')
             self._end_demo()
             super().on_exit(ctx)
 
